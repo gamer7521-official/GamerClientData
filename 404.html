@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 – API Page Not Found | GamerClient API</title>
+<style>
+  :root {
+    --bg: #040a10;
+    --fg: #6fd3ff;
+    --dim: #2f84ad;
+    --err: #ff5470;
+    --warn: #ffd23f;
+    --glow: 0 0 6px rgba(111, 211, 255, .55), 0 0 18px rgba(111, 211, 255, .2);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); }
+  body {
+    color: var(--fg);
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 15px;
+    line-height: 1.55;
+    overflow: hidden;
+  }
+
+  /* CRT-Effekte */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    background: repeating-linear-gradient(to bottom,
+      rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.28) 3px);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 11;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.65) 100%);
+    animation: flicker 6s infinite;
+  }
+  @keyframes flicker {
+    0%, 96%, 100% { opacity: 1; }
+    97% { opacity: .82; }
+    98% { opacity: 1; }
+    99% { opacity: .9; }
+  }
+
+  .screen {
+    height: 100%; overflow-y: auto; padding: 28px clamp(16px, 5vw, 64px) 60px;
+    text-shadow: var(--glow);
+    scrollbar-width: thin; scrollbar-color: var(--dim) transparent;
+  }
+  .titlebar {
+    display: flex; justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid var(--dim); padding-bottom: 8px; margin-bottom: 18px;
+    color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+  }
+  .titlebar b { color: var(--fg); font-weight: 700; }
+
+  pre.ascii {
+    color: var(--err);
+    text-shadow: 0 0 8px rgba(255,84,112,.6);
+    font-size: clamp(7px, 2.1vw, 15px);
+    line-height: 1.15;
+    margin-bottom: 18px;
+    animation: glitch 5s infinite;
+  }
+  @keyframes glitch {
+    0%, 93%, 100% { transform: translateX(0); }
+    94% { transform: translateX(-3px); }
+    95% { transform: translateX(3px); }
+    96% { transform: translateX(-1px); }
+  }
+
+  .line { white-space: pre-wrap; word-break: break-word; }
+  .dim  { color: var(--dim); }
+  .err  { color: var(--err); text-shadow: 0 0 6px rgba(255,84,112,.5); }
+  .warn { color: var(--warn); text-shadow: 0 0 6px rgba(255,210,63,.4); }
+  .ok   { color: var(--fg); }
+  .prompt { color: var(--dim); }
+  .hl { color: #fff; }
+
+  .input-row { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+  .input-row .prompt { flex: none; }
+  #cmd {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: var(--fg); font: inherit; text-shadow: inherit; caret-color: var(--fg);
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 6px; }
+  .btn {
+    border: 1px solid var(--fg); padding: 4px 14px; color: var(--fg); text-decoration: none;
+    text-transform: uppercase; font-size: 13px; letter-spacing: .08em; cursor: pointer;
+    background: transparent; font-family: inherit;
+  }
+  .btn:hover { background: var(--fg); color: var(--bg); text-shadow: none; }
+
+  /* Matrix-Overlay */
+  #matrix { position: fixed; inset: 0; z-index: 5; display: none; background: rgba(4,10,16,.92); }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::after, pre.ascii { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="screen" id="screen" onclick="document.getElementById('cmd').focus()">
+  <div class="titlebar">
+    <span><b>GamerClient API</b> &middot; Terminal</span>
+    <span id="clock">--:--:--</span>
+  </div>
+
+  <pre class="ascii" aria-label="404">
+ _  _    ___  _  _
+| || |  / _ \| || |
+| || |_| | | | || |_
+|__   _| | | |__   _|
+   | | | |_| |  | |
+   |_|  \___/   |_|
+  </pre>
+
+  <div id="log"></div>
+
+  <div class="input-row" id="inputRow" style="display:none">
+    <span class="prompt" id="ps1">guest@gamerclient:~$</span>
+    <input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Terminal-Eingabe">
+  </div>
+</div>
+
+<script>
+(function () {
+  var API_NAME = 'GamerClient API';
+  var VERSION = 'v1.0.0';
+  var log = document.getElementById('log');
+  var screen = document.getElementById('screen');
+  var input = document.getElementById('cmd');
+  var inputRow = document.getElementById('inputRow');
+  var path = location.pathname + location.search;
+  var startedAt = Date.now();
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Bekannte Endpunkte – hier anpassen
+  var endpoints = [
+    { path: '/api/health',     desc: 'Health-Check' },
+    { path: '/api/v1/status',  desc: 'Server-Status' },
+    { path: '/api/v1/modules', desc: 'Liste der Client-Module' },
+    { path: '/api/v1/version', desc: 'Aktuelle Client-Version' }
+  ];
+  var modules = ['Sprint', 'Zoom', 'PatPat', 'Media Player', 'AFK Cinematic', 'Xavi Rig'];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function add(html, cls) {
+    var d = document.createElement('div');
+    d.className = 'line ' + (cls || '');
+    d.innerHTML = html;
+    log.appendChild(d);
+    screen.scrollTop = screen.scrollHeight;
+    return d;
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+
+  function tick() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('de-DE');
+  }
+  tick(); setInterval(tick, 1000);
+
+  async function boot() {
+    var f = reduce ? 0 : 1;
+    add('$ curl -i https://api.gamerclient.dev' + esc(path), 'prompt');
+    await sleep(f * 350);
+    add('');
+    add('HTTP/2 404 Not Found', 'err');
+    add('content-type: application/json', 'dim');
+    add('x-powered-by: gamerclient-api', 'dim');
+    add('');
+    await sleep(f * 250);
+    add('{');
+    add('  "status": 404,');
+    add('  "error": "<span class="err">API_PAGE_NOT_FOUND</span>",');
+    add('  "message": "Der Endpunkt <span class="warn">' + esc(path) + '</span> existiert nicht.",');
+    add('  "hint": "Pr\u00fcfe Pfad, HTTP-Methode und API-Version."');
+    add('}');
+    add('');
+    await sleep(f * 300);
+    add('[ <span class="err">FEHLER</span> ] Ziel nicht gefunden \u2013 Verbindung getrennt.');
+    add('Tippe <span class="warn">help</span> f\u00fcr verf\u00fcgbare Befehle (Tab = Autovervollst\u00e4ndigung, \u2191\u2193 = Verlauf).', 'dim');
+    add('<div class="actions"><button class="btn" onclick="history.back()">&gt; Zur\u00fcck</button><button class="btn" onclick="location.reload()">&gt; Neu laden</button></div>');
+    inputRow.style.display = 'flex';
+    input.focus();
+  }
+
+  // ---------- Befehle ----------
+  var commands = {
+    help: function () {
+      return [
+        'Verf\u00fcgbare Befehle:',
+        '  help            Diese Hilfe',
+        '  ls              Bekannte Endpunkte auflisten',
+        '  curl &lt;pfad&gt;     Endpunkt testen (z.B. curl /api/health)',
+        '  ping            Latenz zur API messen',
+        '  status          API-Status anzeigen',
+        '  modules         Client-Module auflisten',
+        '  version         API-Version',
+        '  neofetch        Systeminfos',
+        '  path            Angefragten Pfad anzeigen',
+        '  uptime          Zeit seit Seitenaufruf',
+        '  date            Datum und Uhrzeit',
+        '  echo &lt;text&gt;      Text ausgeben',
+        '  history         Befehlsverlauf',
+        '  matrix          Matrix-Effekt (beliebige Taste beendet)',
+        '  report          404 melden (kopiert Details)',
+        '  back / retry    Zur\u00fcck / Neu laden',
+        '  clear           Terminal leeren'
+      ];
+    },
+    ls: function () {
+      return endpoints.map(function (e) { return '  ' + pad(e.path, 20) + '<span class="dim">' + esc(e.desc) + '</span>'; });
+    },
+    curl: function (args) {
+      var p = args[0];
+      if (!p) return ['Verwendung: curl &lt;pfad&gt;'];
+      if (p.charAt(0) !== '/') p = '/' + p;
+      var hit = endpoints.filter(function (e) { return e.path === p; })[0];
+      if (!hit) return ['HTTP/2 <span class="err">404</span> Not Found', '{ "status": 404, "error": "API_PAGE_NOT_FOUND", "path": "' + esc(p) + '" }'];
+      var body = { '/api/health': '{ "status": "ok" }',
+                   '/api/v1/status': '{ "status": "online", "uptime": "' + Math.floor(Math.random() * 900 + 100) + 'h" }',
+                   '/api/v1/modules': '{ "modules": ' + JSON.stringify(modules) + ' }',
+                   '/api/v1/version': '{ "version": "' + VERSION + '" }' }[p];
+      return ['HTTP/2 200 OK', esc(body)];
+    },
+    ping: async function () {
+      var out = [];
+      for (var i = 0; i < 4; i++) {
+        var t0 = performance.now();
+        try { await fetch(location.origin + '/favicon.ico', { cache: 'no-store' }); } catch (e) {}
+        var ms = Math.max(1, Math.round(performance.now() - t0));
+        add('Antwort von api.gamerclient.dev: Zeit=' + ms + 'ms');
+        await sleep(reduce ? 0 : 250);
+      }
+      return ['<span class="dim">4 Pakete gesendet.</span>'];
+    },
+    status: function () {
+      return ['API:      <span class="ok hl">ONLINE</span>', 'Endpunkt: <span class="err">' + esc(path) + '</span> \u2192 404',
+              'Version:  ' + VERSION];
+    },
+    modules: function () {
+      return modules.map(function (m, i) { return '  [' + (i + 1) + '] ' + m; });
+    },
+    version: function () { return [API_NAME + ' ' + VERSION]; },
+    neofetch: function () {
+      return [
+        '<span class="hl">guest</span>@<span class="hl">gamerclient</span>',
+        '-------------------',
+        'OS:      GamerClient API Terminal',
+        'Browser: ' + esc(navigator.userAgent.split(' ').slice(-1)[0]),
+        'Sprache: ' + esc(navigator.language),
+        'Screen:  ' + screen.clientWidth + 'x' + screen.clientHeight,
+        'Pfad:    ' + esc(path)
+      ];
+    },
+    path: function () { return [esc(path)]; },
+    uptime: function () {
+      var s = Math.floor((Date.now() - startedAt) / 1000);
+      return ['Sitzung l\u00e4uft seit ' + s + 's'];
+    },
+    date: function () { return [new Date().toLocaleString('de-DE')]; },
+    echo: function (args) { return [esc(args.join(' '))]; },
+    whoami: function () { return ['guest (keine Berechtigung f\u00fcr diesen Endpunkt)']; },
+    history: function () { return hist.map(function (h, i) { return '  ' + (i + 1) + '  ' + esc(h); }); },
+    report: function () {
+      var text = '404 auf ' + API_NAME + ': ' + location.href + ' (' + new Date().toISOString() + ')';
+      try { navigator.clipboard.writeText(text); return ['Details in die Zwischenablage kopiert.']; }
+      catch (e) { return [esc(text)]; }
+    },
+    back: function () { history.back(); return ['Gehe zur\u00fcck...']; },
+    retry: function () { location.reload(); return []; },
+    clear: function () { log.innerHTML = ''; return []; },
+    matrix: function () { startMatrix(); return []; },
+    sudo: function () { return ['<span class="err">Nice try.</span> guest steht nicht in der sudoers-Datei. Vorfall wird gemeldet.']; },
+    rm: function () { return ['<span class="err">Zugriff verweigert.</span> Netter Versuch.']; }
+  };
+
+  // ---------- Eingabe, Verlauf, Tab ----------
+  var hist = [], hi = 0;
+  input.addEventListener('keydown', async function (e) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (hi > 0) { hi--; input.value = hist[hi]; }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (hi < hist.length - 1) { hi++; input.value = hist[hi]; } else { hi = hist.length; input.value = ''; }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      var v = input.value.trim().toLowerCase();
+      if (!v) return;
+      var m = Object.keys(commands).filter(function (c) { return c.indexOf(v) === 0; });
+      if (m.length === 1) input.value = m[0] + ' ';
+      else if (m.length > 1) add(m.join('  '), 'dim');
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault(); commands.clear();
+    } else if (e.key === 'Enter') {
+      var raw = input.value.trim();
+      input.value = '';
+      add('<span class="prompt">guest@gamerclient:~$</span> ' + esc(raw));
+      if (!raw) return;
+      hist.push(raw); hi = hist.length;
+      var parts = raw.split(/\s+/);
+      var name = parts[0].toLowerCase();
+      var fn = commands[name];
+      if (fn) {
+        var res = await fn(parts.slice(1));
+        (res || []).forEach(function (l) { add(l); });
+      } else {
+        add('bash: ' + esc(name) + ': Befehl nicht gefunden', 'err');
+      }
+    }
+  });
+
+  // ---------- Matrix ----------
+  var mx = document.getElementById('matrix'), mTimer = null;
+  function stopMatrix() {
+    clearInterval(mTimer); mx.style.display = 'none';
+    document.removeEventListener('keydown', stopMatrix);
+    mx.removeEventListener('click', stopMatrix);
+    input.focus();
+  }
+  function startMatrix() {
+    mx.style.display = 'block';
+    mx.width = innerWidth; mx.height = innerHeight;
+    var ctx = mx.getContext('2d'), size = 16, cols = Math.floor(mx.width / size);
+    var drops = []; for (var i = 0; i < cols; i++) drops[i] = Math.random() * -50;
+    var chars = '01GAMERCLIENT<>/{}';
+    mTimer = setInterval(function () {
+      ctx.fillStyle = 'rgba(4,10,16,.12)'; ctx.fillRect(0, 0, mx.width, mx.height);
+      ctx.fillStyle = '#6fd3ff'; ctx.font = size + 'px monospace';
+      for (var i = 0; i < cols; i++) {
+        ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * size, drops[i] * size);
+        if (drops[i] * size > mx.height && Math.random() > .975) drops[i] = 0;
+        drops[i]++;
+      }
+    }, 45);
+    setTimeout(function () {
+      document.addEventListener('keydown', stopMatrix);
+      mx.addEventListener('click', stopMatrix);
+    }, 200);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+[build]
+  functions = "netlify/functions"
+
+# /api/... wird auf die Function "api" umgeleitet
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200

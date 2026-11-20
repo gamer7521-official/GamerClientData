@@ -2,9 +2,18 @@
   "players": [
     {
       "name": "gamer_752",
-      "effect": "gradient",
+      "effect": "wave",
       "gradient": ["#0260DF", "#FFFFFF"]
+    },
+    {
+      "name": "Dreix31",
+      "effect": "gradient",
+      "gradient": ["#A855F7", "#FFFFFF"]
+    },
+    {
+      "name": "gamer_753",
+      "effect": "gradient",
+      "gradient": ["#FFD700", "#FFFFFF"]
     }
   ]
 }
-

@@ -1,1 +1,10 @@
+{
+  "players": [
+    {
+      "name": "gamer_752",
+      "effect": "gradient",
+      "gradient": ["#8EDCFF", "#FFFFFF"]
+    }
+  ]
+}
 

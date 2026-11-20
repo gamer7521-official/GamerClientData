@@ -1,9 +1,11 @@
 {
   "default_icon": "icon",
   "players": [
-    { "name": "Moses_752" },
-    { "name": "Muirio72" },
-    { "name": "gamer_752" },
-    { "name": "gamer_753" }
+    { "name": "Moses_752", "icon": "green" },
+    { "name": "Muirio72", "icon": "green" },
+    { "name": "gamer_752", "icon": "icon" },
+    { "name": "gamer_753", "icon": "icon" },
+    { "name": "Dreix31", "icon": "purple" },
+    { "name": "Lostie_TV", "icon": "purple" }
   ]
 }

@@ -6,6 +6,11 @@
       "gradient": ["#00B1FF", "#FFFFFF"]
     },
     {
+      "name": "IceT_Pepel2",
+      "effects": ["gradient"],
+      "gradient": ["#ff7800", "#ffb370"]
+    },
+    {
       "name": "Moses_752",
       "effects": ["gradient", "wave"],
       "gradient": ["#C527F5", "#2731F5"]
